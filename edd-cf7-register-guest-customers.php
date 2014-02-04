@@ -3,7 +3,7 @@
 Plugin Name: EDD CF7 Register Guest Customers
 Plugin URI: http://isabelcastillo.com/docs/category/edd-cf7-register-guest-customers
 Description: Register EDD guest customers with Contact Form 7 custom registration, disable registration for everyone else.
-Version: 0.4.6
+Version: 0.4.7
 Author: Isabel Castillo
 Author URI: http://isabelcastillo.com
 License: GPL2
@@ -33,17 +33,6 @@ class EDD_CF7_Register_Guest_Customers{
 	    	add_action( 'plugins_loaded', array( $this, 'load_textdomain' ) );
 		add_filter( 'edd_settings_extensions', array( $this, 'add_settings' ) );
 		add_action( 'wpcf7_before_send_mail', array( $this, 'send_cf7_data_to_register' ) );
-
-
-		/** 
-		 * During testing or debugging, you may need to run the following action once
-		 *  or else your test-customers will not receive any emails after test 1.
-		 *
-		 * Use temporarily as a reset ONLY WHILE TESTING. Do not use on live site.
-		 * IF YOU USE THIS ON A LIVE SITE registrants will get dozens of email responses upon form submission.
-		 */
-		
-		// add_action( 'init', array( $this, 'allow_duplicate_emails' ) ); // leave commented out on live sites
 
     }
 
@@ -89,7 +78,7 @@ class EDD_CF7_Register_Guest_Customers{
 				'name' => __( 'Rejection Email Message', 'edd-cf7rgc' ), 
 				'desc' => __( 'Enter the message that is sent to someone when their email address is not recognized. HTML links (a tags) are accepted. These other special tags are allowed:', 'edd-cf7rgc' ) . '<br />{registrant_name}<br />{sitename}<br />{siteurl}',
 				'type' => 'textarea',
-				'std' => __( 'Dear', 'edd-cf7rgc' ) . " {registrant_name},\n\n" . __( 'Thank you for trying to register on our site. We are sorry, but your email address is not recognized. Please register with the email that you used to purchase on our site.', 'edd-cf7rgc' ) . "\n\n" . __( 'Best Regards,', 'edd-cf7rgc' ) . "\n\n" . __( 'The team at', 'edd-cf7rgc' ) . " {sitename}"
+				'std' => __( 'Dear', 'edd-cf7rgc' ) . " {registrant_name},\n\n" . __( 'Thank you for trying to register on our site. We are sorry, but your email address is not recognized. Please register with the email that you used to complete a purchase on our site.', 'edd-cf7rgc' ) . "\n\n" . __( 'Best Regards,', 'edd-cf7rgc' ) . "\n\n" . __( 'The team at', 'edd-cf7rgc' ) . " {sitename}"
 			),
 
 			array(
@@ -169,22 +158,28 @@ class EDD_CF7_Register_Guest_Customers{
 				
 			$customers = $customers_data->customers;
 		
-			unset($customer_id, $customer_username);
+			unset($customer_id, $customer_username, $total_purchases);
 		
 			foreach ( $customers as $customer ) {
-		
+
+				// only if there's a matching email addy
+
 				if ( $customer->info->email == $email ) {
-		
+
 					// it's a customer
 					$customer_id = $customer->info->id;
 					$customer_username = $customer->info->username;
-		
+
+					// get total purchases
+					$total_purchases = $customer->stats->total_purchases;
+
 				}
 			}
 		
 			// is this a customer?
 		
-			if ( ! isset( $customer_id ) || empty( $customer_id ) ) {
+			if ( ( ! isset( $customer_id ) || empty( $customer_id ) ) || 
+				( ( '-1' == $customer_id ) && ( empty( $total_purchases ) ) ) ) { // pending guest
 		
 					// This is not a customer. Send them back an email asking for more details.
 		
@@ -200,42 +195,65 @@ class EDD_CF7_Register_Guest_Customers{
 		
 					}
 		
-			} elseif ( '-1' == $customer_id ) {
+			} elseif ( ( '-1' == $customer_id ) && ( ! empty( $total_purchases ) ) ) {
 		
-				// This is guest customer. Register them and send them email notification of login details.
-				// if desired username is not taken, give it to this person, otherwise login with email
+				// This is guest customer who actually made a purchase (i.e. not pending). 
+				// Register and send email notification of login details.
 		
+				unset( $new_user_login, $new_user_email );
+
+				// If desired username is not taken, give it to this person, otherwise login with email
+
 				if ( $desired_username ) {
 
 					$taken_name = get_user_by( 'login', $desired_username );
-					$new_user_login = (! $taken_name) ? $desired_username : $email;
+					$new_user_login = empty( $taken_name ) ? $desired_username : $email;
 				} else {
-					$new_user_login = $email;
-				}
-		
-				$password = wp_generate_password();
-				$user_id = wp_insert_user(
-							array(
-								'user_email' 	=> $email,
-								'user_login' 	=> $new_user_login,
-								'user_pass'	=> $password,
-								'first_name'	=> $name,
-								)
-							);
-		
-				// If new user is created, send them email and password:
-				if ( $user_id && ( get_option( 'isa_prevent_duplicate_email_sends' ) != ( $email . $time ) ) ) {
-					wp_new_user_notification( $user_id, $password );
-					update_option( 'isa_prevent_duplicate_email_sends', $email . $time );
 
+					// if email is not already taken as a username, assign it
+					$taken_name = get_user_by( 'login', $email );
+					$new_user_login = empty( $taken_name ) ? $email : '';
 				}
 		
+				// make sure email is not taken
+				$taken_email = get_user_by( 'email', $email );
+				$new_user_email = empty( $taken_email ) ? $email : '';
+
+				// only add user if we have a unique userlogin and email
+				if ( ! empty( $new_user_login ) && ! empty( $new_user_email ) ) {
+					$password = wp_generate_password();
+					$user_id = wp_insert_user(
+								array(
+									'user_email' 	=> $email,
+									'user_login' 	=> $new_user_login,
+									'user_pass'	=> $password,
+									'first_name'	=> $name,
+									)
+								);
+			
+					if ( $user_id && ( get_option( 'isa_prevent_duplicate_email_sends' ) != ( $email . $time ) ) ) {
+						wp_new_user_notification( $user_id, $password );
+						update_option( 'isa_prevent_duplicate_email_sends', $email . $time );
+	
+					} 
+		
+				} else {
+					// rare case, if at all possible
+					$message = sprintf( __( 'Dear %s', 'edd-cf7rgc' ), $name ) . "\n\n" . __( 'We could not complete your registration because the username you are trying to use is taken. Please register again with a different desired username.', 'edd-cf7rgc' ) . "\n\n" . __( 'Best regards,', 'edd-cf7rgc' ) . "\n\n" . sprintf( __( 'the team at %s', 'edd-cf7rgc' ), get_bloginfo('name') ) . "\r\n" . get_bloginfo('url');
+					$headers = "From: " . get_bloginfo( 'name' ) . " <" . get_bloginfo( 'admin_email' ). ">";
+					if ( get_option( 'isa_prevent_duplicate_email_sends' ) != ( $email . $time ) ) {
+						if ( wp_mail( $email, 'Your registration is not complete', $message, $headers ) ) {
+							update_option( 'isa_prevent_duplicate_email_sends', $email . $time );
+						}
+					}
+				} // end if ( ! empty( $new_user_login ) && ! empty( $new_user_email ) )
+
 			} elseif ( ! empty( $customer_id ) && ! empty( $customer_username ) ) {
 		
 				// id is not empty, nor -1, so user already exists. Send them their username.
 		
 				$message = $this->do_email_tags( $edd_options['edd_cf7rgc_already_exists_message'], $name, $customer_username );
-							
+					
 				$headers = "From: " . get_bloginfo( 'name' ) . " <" . get_bloginfo( 'admin_email' ). ">";
 		
 				if ( get_option( 'isa_prevent_duplicate_email_sends' ) != ( $email . $time ) ) {
@@ -276,12 +294,13 @@ class EDD_CF7_Register_Guest_Customers{
 		return $new_content;
 	}
 
-	/** 
-	 * Delete the option that prevents sending email to visitors more than once a day. For testing.
+	/**
+	 * Upon deactivation, delete the option that prevents sending email to visitors more than once a minute
 	 */
-	public function allow_duplicate_emails() {
+	public static function deactivate() {
 		delete_option( 'isa_prevent_duplicate_email_sends' );
 	}
 }
 }
+register_deactivation_hook( __FILE__, array( 'EDD_CF7_Register_Guest_Customers', 'deactivate' ) );
 $EDD_CF7_Register_Guest_Customers = new EDD_CF7_Register_Guest_Customers();
