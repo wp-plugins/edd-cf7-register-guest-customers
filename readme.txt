@@ -6,7 +6,7 @@ Donate link: https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=me%40
 Tags: EDD, CF7, register, guest, guest checkout, registration, Contact Form 7, guest customers, customer, easy digital downloads, custom regisration, wpcf7
 Requires at least: 3.6
 Tested up to: 3.8.1
-Stable Tag: 0.4.7
+Stable Tag: 0.4.8
 License: GNU Version 2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -61,6 +61,9 @@ None yet.
 
 == Changelog ==
 
+= 0.4.8 =
+* Tweak: stop endless ajax loading upon form submission when using multiple CF7 forms.
+
 = 0.4.7 =
 * Bug fix: do not register guest customers when their order is only PENDING.
 * Tweak: added check for duplicate email address before inserting user, in case guest email address is in use by a different user.
@@ -77,6 +80,8 @@ None yet.
 = 0.4.5 =
 * Initial release.
 == Upgrade Notice ==
+= 0.4.8 =
+Stop endless ajax loading upon form submission when using multiple CF7 forms.
 
 = 0.4.7 =
 Bug fix: do not register guest customers when their order is only PENDING.

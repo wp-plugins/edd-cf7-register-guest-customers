@@ -3,7 +3,7 @@
 Plugin Name: EDD CF7 Register Guest Customers
 Plugin URI: http://isabelcastillo.com/docs/category/edd-cf7-register-guest-customers
 Description: Register EDD guest customers with Contact Form 7 custom registration, disable registration for everyone else.
-Version: 0.4.7
+Version: 0.4.8
 Author: Isabel Castillo
 Author URI: http://isabelcastillo.com
 License: GPL2
@@ -105,11 +105,15 @@ class EDD_CF7_Register_Guest_Customers{
 
 	/**
 	 * During a Contact Form 7 form submission, send form data to be registered
-	 * only if field names 'edd-register-guest-buyer-email' and 'edd-register-guest-buyer-email' are included in form.
+	 * only if field names 'edd-register-guest-buyer-email' and 'edd-register-guest-buyer-name' are included in form.
 	 * 
 	 */
 
 	public function send_cf7_data_to_register( $cf7 ) {
+
+		 // get out now if this is not our form
+		if ( ! isset( $_POST['edd-register-guest-buyer-email'] ) )
+			return false;
 	
 		$email = $cf7->posted_data["edd-register-guest-buyer-email"];
 		$name = $cf7->posted_data["edd-register-guest-buyer-name"];
