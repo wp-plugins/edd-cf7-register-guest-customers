@@ -4,9 +4,9 @@ Plugin URI: http://isabelcastillo.com/docs/category/edd-cf7-register-guest-custo
 Contributors: isabel104
 Donate link: https://www.paypal.com/cgi-bin/webscr?cmd=_donations&business=me%40isabelcastillo%2ecom
 Tags: EDD, CF7, register, guest, guest checkout, registration, Contact Form 7, guest customers, customer, easy digital downloads, custom regisration, wpcf7
-Requires at least: 3.6
-Tested up to: 3.8.1
-Stable Tag: 0.4.8
+Requires at least: 3.8
+Tested up to: 4.0
+Stable Tag: 1.0
 License: GNU Version 2
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -61,6 +61,12 @@ None yet.
 
 == Changelog ==
 
+= 1.0 =
+* Bug fix - A major change has been made to the internal structure to keep up with Contact Form 7 version 3.9. Our previous versions will not work with Contact Form 7 3.9.
+* Tweak - Now uses a singleton class.
+* Maintenance - Removed one PHP notice.
+* Maintenance - Tested and passed for WordPress 4.0 compatibility. Our plugin now requires WordPress 3.8 or higher.
+
 = 0.4.8 =
 * Tweak: stop endless ajax loading upon form submission when using multiple CF7 forms.
 
@@ -80,6 +86,10 @@ None yet.
 = 0.4.5 =
 * Initial release.
 == Upgrade Notice ==
+
+= 1.0 =
+Major bug fix. Update is required to keep up with Contact Form 3.9.
+
 = 0.4.8 =
 Stop endless ajax loading upon form submission when using multiple CF7 forms.
 

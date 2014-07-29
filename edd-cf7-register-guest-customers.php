@@ -3,7 +3,7 @@
 Plugin Name: EDD CF7 Register Guest Customers
 Plugin URI: http://isabelcastillo.com/docs/category/edd-cf7-register-guest-customers
 Description: Register EDD guest customers with Contact Form 7 custom registration, disable registration for everyone else.
-Version: 0.4.8
+Version: 1.0
 Author: Isabel Castillo
 Author URI: http://isabelcastillo.com
 License: GPL2
@@ -28,12 +28,20 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 if(!class_exists('EDD_CF7_Register_Guest_Customers')) {
 
 class EDD_CF7_Register_Guest_Customers{
-    public function __construct() {
 
-	    	add_action( 'plugins_loaded', array( $this, 'load_textdomain' ) );
+	private static $instance = null;
+
+	public static function get_instance() {
+		if ( null == self::$instance ) {
+			self::$instance = new self;
+		}
+		return self::$instance;
+	}
+
+	private function __construct() {
+    	add_action( 'plugins_loaded', array( $this, 'load_textdomain' ) );
 		add_filter( 'edd_settings_extensions', array( $this, 'add_settings' ) );
 		add_action( 'wpcf7_before_send_mail', array( $this, 'send_cf7_data_to_register' ) );
-
     }
 
 	public function load_textdomain() {
@@ -42,11 +50,9 @@ class EDD_CF7_Register_Guest_Customers{
 
 	/**
 	 * Add settings to the "Downloads > Settings > Extensions" section
-	 *
 	 * @since 1.0
 	 */
 	public function add_settings( $settings ) {
-	
 		$eddcf7_settings = array(
 			array(
 				'id' => 'edd_cf7rgc_settings_header',
@@ -98,26 +104,29 @@ class EDD_CF7_Register_Guest_Customers{
 				'std' => __( 'Hello', 'edd-cf7rgc' ) . " {registrant_name},\n\n" . __( 'It seems you already have an account on our site.', 'edd-cf7rgc' ) . "\n\n" . __( 'Your username is:', 'edd-cf7rgc' ) . "  {registrant_username}\n\n" .	__( 'Warm Regards,', 'edd-cf7rgc' ) . "\n\n" . __( 'The team at', 'edd-cf7rgc' ) . " {sitename}\n{siteurl}"
 			),
 		);
-	
-		// Merge plugin settings with original EDD settings
+		// Merge plugin settings with EDD settings
 		return array_merge( $settings, $eddcf7_settings );
 	}
 
 	/**
 	 * During a Contact Form 7 form submission, send form data to be registered
 	 * only if field names 'edd-register-guest-buyer-email' and 'edd-register-guest-buyer-name' are included in form.
-	 * 
 	 */
-
 	public function send_cf7_data_to_register( $cf7 ) {
 
 		 // get out now if this is not our form
 		if ( ! isset( $_POST['edd-register-guest-buyer-email'] ) )
 			return false;
-	
-		$email = $cf7->posted_data["edd-register-guest-buyer-email"];
-		$name = $cf7->posted_data["edd-register-guest-buyer-name"];
-		$desired_username = $cf7->posted_data["edd-register-guest-buyer-username"];
+
+		// get posted data from WPCF7_Submission object
+		$submission = WPCF7_Submission::get_instance();
+		if ( $submission ) {
+			$posted_data = $submission->get_posted_data();
+		}
+			
+		$email = $posted_data["edd-register-guest-buyer-email"];
+		$name = $posted_data["edd-register-guest-buyer-name"];
+		$desired_username = $posted_data["edd-register-guest-buyer-username"];
 
 		// sanitize
 		$email = sanitize_text_field( $email );
@@ -187,8 +196,7 @@ class EDD_CF7_Register_Guest_Customers{
 		
 					// This is not a customer. Send them back an email asking for more details.
 		
-					$message = $this->do_email_tags( $edd_options['edd_cf7rgc_rejection_message'], $name, $customer_username );
-	
+					$message = $this->do_email_tags( $edd_options['edd_cf7rgc_rejection_message'], $name, '' );
 					$headers = "From: " . get_bloginfo( 'name' ) . " <" . get_bloginfo( 'admin_email' ). ">";
 			
 					if ( get_option( 'isa_prevent_duplicate_email_sends' ) != ( $email . $time ) ) {
@@ -270,7 +278,6 @@ class EDD_CF7_Register_Guest_Customers{
 			} // end check if this is a customer
 
 			$cf7->skip_mail = 1;
-	
 		}
 
 		return $cf7;
@@ -307,4 +314,4 @@ class EDD_CF7_Register_Guest_Customers{
 }
 }
 register_deactivation_hook( __FILE__, array( 'EDD_CF7_Register_Guest_Customers', 'deactivate' ) );
-$EDD_CF7_Register_Guest_Customers = new EDD_CF7_Register_Guest_Customers();
+$EDD_CF7_Register_Guest_Customers = EDD_CF7_Register_Guest_Customers::get_instance();
